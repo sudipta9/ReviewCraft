@@ -242,23 +242,6 @@ class Settings(BaseModel):
     api_prefix: str = Field(default="/api/v1", description="API prefix")
     cors_origins: List[str] = Field(default=["*"], description="CORS allowed origins")
 
-    # Security
-    secret_key: str = Field(
-        default="your-secret-key-change-in-production",
-        description="Secret key for JWT and other security features",
-    )
-    access_token_expire_minutes: int = Field(
-        default=30, description="Access token expiration time in minutes"
-    )
-
-    # Rate Limiting
-    rate_limit_requests: int = Field(
-        default=100, description="Rate limit requests per minute"
-    )
-    rate_limit_window: int = Field(
-        default=60, description="Rate limit window in seconds"
-    )
-
     # Sub-configurations
     celery: CeleryConfig
     database: DatabaseConfig
@@ -289,25 +272,6 @@ class Settings(BaseModel):
             ),
             api_prefix=os.getenv("API_PREFIX", cls.model_fields["api_prefix"].default),
             cors_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-            secret_key=os.getenv("SECRET_KEY", cls.model_fields["secret_key"].default),
-            access_token_expire_minutes=int(
-                os.getenv(
-                    "ACCESS_TOKEN_EXPIRE_MINUTES",
-                    str(cls.model_fields["access_token_expire_minutes"].default),
-                )
-            ),
-            rate_limit_requests=int(
-                os.getenv(
-                    "RATE_LIMIT_REQUESTS",
-                    str(cls.model_fields["rate_limit_requests"].default),
-                )
-            ),
-            rate_limit_window=int(
-                os.getenv(
-                    "RATE_LIMIT_WINDOW",
-                    str(cls.model_fields["rate_limit_window"].default),
-                )
-            ),
             celery=CeleryConfig.from_env(),
             database=DatabaseConfig.from_env(),
             github=GitHubConfig.from_env(),
