@@ -12,10 +12,10 @@ The task orchestrates the entire analysis workflow:
 """
 
 import asyncio
+import concurrent.futures
 import time
 from datetime import datetime
 from typing import Dict, Optional
-import concurrent.futures
 
 from app.models import AnalysisStatus, PRAnalysis, Task, TaskStatus
 from app.utils import (

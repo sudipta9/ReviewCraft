@@ -7,15 +7,17 @@ all components of the system with proper async support.
 
 import asyncio
 import os
+from typing import Any, AsyncGenerator, Dict
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 import pytest_asyncio
-from typing import Dict, Any, AsyncGenerator
-from unittest.mock import Mock, AsyncMock
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from app.main import create_app
+
 from app.database import Base
+from app.main import create_app
 
 # Test environment setup - MUST be done before importing app modules
 os.environ.update(
@@ -77,10 +79,10 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 async def app():
     """Create FastAPI app instance for testing."""
     # Import here to avoid circular dependencies
-    from app.database import DatabaseManager, Base
+    from app.database import Base, DatabaseManager
 
     # Import models to ensure they are registered with SQLAlchemy
-    from app.models import Task, PRAnalysis, FileAnalysis, Issue
+    from app.models import FileAnalysis, Issue, PRAnalysis, Task  # noqa: F401
 
     # Create the app
     app = create_app()

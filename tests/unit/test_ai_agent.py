@@ -189,7 +189,7 @@ class TestAIAgent:
             for item in data:
                 result.append(item * 2)
             return result
-            
+
         def process_data_b():
             result = []
             for item in data:
@@ -270,13 +270,11 @@ class TestAIAgent:
         code_with_functions = """
         def short_function():
             return 1
-            
         def longer_function():
             x = 1
             y = 2
             z = x + y
             return z
-            
         class TestClass:
             def method(self):
                 pass

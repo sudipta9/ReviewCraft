@@ -13,7 +13,7 @@ Features:
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from sqlalchemy import JSON, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship

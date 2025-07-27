@@ -121,7 +121,7 @@ class TestServiceIntegration:
         # Setup GitHub client to fail
         mock_github_client.get_pull_request.side_effect = GitHubAPIError("API error")
 
-        code_analyzer = CodeAnalyzer()
+        code_analyzer = CodeAnalyzer()  # noqa: F841
 
         # Error should propagate properly
         with pytest.raises(GitHubAPIError):
@@ -277,7 +277,6 @@ class TestCeleryIntegration:
     @pytest.mark.asyncio
     async def test_task_creation_and_tracking(self):
         """Test task creation and status tracking."""
-        from app.worker.analyze_pr_task import analyze_pr_task
 
         with patch("app.worker.pr_analysis_task.analyze_pr_task.delay") as mock_delay:
             mock_task_result = Mock()

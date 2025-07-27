@@ -343,7 +343,7 @@ class TestAPIEndpoints:
 
         # Test schema endpoint performance
         start_time = time.time()
-        response = client.get("/openapi.json")
+        response = client.get("/openapi.json")  # noqa: F841
         duration = time.time() - start_time
 
         # Schema generation should be reasonable (under 2 seconds)

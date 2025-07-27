@@ -16,7 +16,7 @@ from typing import Any, Dict, List
 
 from structlog import get_logger
 
-from app.models import AnalysisStatus, FileAnalysis, Issue, IssueType, IssueSeverity
+from app.models import AnalysisStatus, FileAnalysis, Issue, IssueSeverity, IssueType
 from app.services.ai_agent import AIAgent
 
 logger = get_logger(__name__)

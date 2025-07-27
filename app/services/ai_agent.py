@@ -15,8 +15,9 @@ Features:
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-from whats_that_code.election import guess_language_all_methods
+
 from structlog import get_logger
+from whats_that_code.election import guess_language_all_methods
 
 from app.config import get_settings
 from app.services.code_embeddings import CodeEmbeddingsService
