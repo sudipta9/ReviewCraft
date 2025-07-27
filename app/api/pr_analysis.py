@@ -313,19 +313,71 @@ async def get_analysis_results(
     # For now, return a simplified response until we have full analysis data
     from app.api.schemas import AnalysisSummary
 
-    # Create basic summary
+    # Create summary from actual analysis data
+    file_analyses = pr_analysis.file_analyses or []
+    all_issues = pr_analysis.issues or []
+
+    # Count issues by severity
+    critical_count = sum(1 for issue in all_issues if issue.severity == "critical")
+    high_count = sum(1 for issue in all_issues if issue.severity == "high")
+    medium_count = sum(1 for issue in all_issues if issue.severity == "medium")
+    low_count = sum(1 for issue in all_issues if issue.severity == "low")
+
+    # Calculate totals from file analyses
+    total_lines_added = sum(fa.lines_added or 0 for fa in file_analyses)
+    total_lines_removed = sum(fa.lines_removed or 0 for fa in file_analyses)
+
+    # Extract unique languages
+    languages_detected = list(set(fa.file_type for fa in file_analyses if fa.file_type))
+
     summary = AnalysisSummary(
-        total_files=0,
-        total_lines_added=0,
-        total_lines_removed=0,
-        total_issues=0,
-        critical_issues=0,
-        high_issues=0,
-        medium_issues=0,
-        low_issues=0,
-        languages_detected=[],
-        overall_score=None,
+        total_files=pr_analysis.total_files_analyzed or len(file_analyses),
+        total_lines_added=total_lines_added,
+        total_lines_removed=total_lines_removed,
+        total_issues=pr_analysis.total_issues_found or len(all_issues),
+        critical_issues=critical_count,
+        high_issues=high_count,
+        medium_issues=medium_count,
+        low_issues=low_count,
+        languages_detected=languages_detected,
+        overall_score=pr_analysis.quality_score,
     )
+
+    # Build file analysis results
+    from app.api.schemas import FileAnalysisSchema, IssueSchema
+
+    file_results = []
+    for fa in file_analyses:
+        # Get issues for this file
+        file_issues = [issue for issue in all_issues if issue.file_analysis_id == fa.id]
+
+        # Convert issues to schema format
+        issue_schemas = []
+        for issue in file_issues:
+            issue_schema = IssueSchema(
+                id=issue.id,
+                type=issue.issue_type,
+                severity=issue.severity,
+                line_number=issue.line_number,
+                column_number=issue.column_number,
+                description=issue.description,
+                suggestion=issue.suggestion,
+                rule_id=issue.rule_id,
+                confidence=issue.confidence,
+            )
+            issue_schemas.append(issue_schema)
+
+        # Convert file analysis to schema format
+        file_schema = FileAnalysisSchema(
+            id=fa.id,
+            file_path=fa.file_path,
+            language=fa.file_type,
+            lines_added=fa.lines_added or 0,
+            lines_removed=fa.lines_removed or 0,
+            complexity_score=fa.complexity_score,
+            issues=issue_schemas,
+        )
+        file_results.append(file_schema)
 
     return PRAnalysisResultsResponse(
         success=True,
@@ -337,8 +389,14 @@ async def get_analysis_results(
         analysis_started_at=task.started_at or task.created_at,
         analysis_completed_at=task.completed_at,
         summary=summary,
-        files=[],  # Will be populated with actual file analysis data
-        metadata={},  # TODO: Properly handle metadata extraction
+        files=file_results,  # Now populated with actual file analysis data
+        metadata={
+            "recommendations": pr_analysis.recommendations or [],
+            "analysis_tools_used": ["ai_agent", "code_analyzer"],
+            "pr_url": pr_analysis.pr_url,
+            "base_branch": pr_analysis.base_branch,
+            "head_branch": pr_analysis.head_branch,
+        },
     )
 
 

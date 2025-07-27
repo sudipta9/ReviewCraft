@@ -106,35 +106,35 @@ class PRAnalysis(Base):
 
     # Analysis summary statistics
     total_files_analyzed: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Total number of files analyzed"
+        Integer, nullable=True, doc="Total number of files analyzed"
     )
 
     total_lines_analyzed: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Total number of lines analyzed"
+        Integer, nullable=True, doc="Total number of lines analyzed"
     )
 
     total_issues_found: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Total number of issues found"
+        Integer, nullable=True, doc="Total number of issues found"
     )
 
     critical_issues: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Number of critical issues"
+        Integer, nullable=True, doc="Number of critical issues"
     )
 
     high_issues: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Number of high severity issues"
+        Integer, nullable=True, doc="Number of high severity issues"
     )
 
     medium_issues: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Number of medium severity issues"
+        Integer, nullable=True, doc="Number of medium severity issues"
     )
 
     low_issues: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Number of low severity issues"
+        Integer, nullable=True, doc="Number of low severity issues"
     )
 
     info_issues: Mapped[int] = mapped_column(
-        Integer, default=0, doc="Number of informational issues"
+        Integer, nullable=True, doc="Number of informational issues"
     )
 
     # Analysis quality score (0-100)

@@ -69,8 +69,25 @@ class LLMClient:
                 "Using OpenRouter client", model=self.ai_config.openrouter_model
             )
         else:
-            logger.warning("No OpenRouter API key found, using mock mode")
+            logger.warning(
+                "OpenRouter API key not found - AI analysis will use mock data. "
+                "Set OPENROUTER_API_KEY environment variable for real AI analysis."
+            )
             self._client = None
+
+    def is_configured(self) -> bool:
+        """Check if the LLM client is properly configured."""
+        return self._client is not None
+
+    def get_configuration_status(self) -> Dict[str, Any]:
+        """Get detailed configuration status for debugging."""
+        return {
+            "is_configured": self.is_configured(),
+            "has_api_key": bool(self.ai_config.openrouter_api_key),
+            "model": self.ai_config.openrouter_model,
+            "base_url": self.ai_config.openrouter_base_url,
+            "mode": "real_ai" if self.is_configured() else "mock_data",
+        }
 
     def _get_provider(self) -> str:
         """Get the current provider name."""
@@ -95,6 +112,9 @@ class LLMClient:
             Dictionary containing code quality analysis
         """
         if not self._client:
+            logger.warning(
+                "Using mock quality analysis - OpenRouter API key not configured"
+            )
             return self._mock_quality_analysis()
 
         prompt = self._build_quality_analysis_prompt(file_content, file_path, language)
@@ -168,6 +188,9 @@ class LLMClient:
             List of security issues found
         """
         if not self._client:
+            logger.warning(
+                "Using mock security analysis - OpenRouter API key not configured"
+            )
             return self._mock_security_analysis()
 
         prompt = self._build_security_analysis_prompt(file_content, file_path, language)
@@ -240,6 +263,7 @@ class LLMClient:
             List of improvement suggestions
         """
         if not self._client:
+            logger.warning("Using mock suggestions - OpenRouter API key not configured")
             return self._mock_suggestions()
 
         prompt = self._build_suggestions_prompt(file_content, file_path, language)
@@ -393,48 +417,27 @@ Focus on:
     def _mock_quality_analysis(self) -> Dict[str, Any]:
         """Return mock quality analysis when AI is unavailable."""
         return {
-            "score": 8.0,
-            "issues": [
-                {
-                    "type": "warning",
-                    "title": "Mock Analysis",
-                    "description": "AI service unavailable - showing mock results",
-                    "line": 1,
-                }
-            ],
+            "score": 0.0,  # Set to 0 to indicate mock data
+            "issues": [],  # Empty issues since this is mock
             "suggestions": [
                 {
-                    "type": "info",
-                    "title": "Configure AI Service",
-                    "description": "Set up OpenRouter API key to enable real analysis",
+                    "type": "configuration",
+                    "title": "AI Service Not Configured",
+                    "description": "Set OPENROUTER_API_KEY environment variable to enable real AI-powered analysis",
                     "priority": "high",
                 }
             ],
-            "metrics": {"maintainability": 8, "readability": 8, "complexity": 7},
+            "metrics": {
+                "maintainability": 0,
+                "readability": 0,
+                "complexity": 0,
+            },  # Set to 0 to indicate mock
         }
 
     def _mock_security_analysis(self) -> List[Dict[str, Any]]:
         """Return mock security analysis when AI is unavailable."""
-        return [
-            {
-                "type": "info",
-                "severity": "low",
-                "title": "Mock Security Analysis",
-                "description": "AI service unavailable - configure OpenRouter API key for real security analysis",
-                "line": 1,
-                "recommendation": "Set up OpenRouter API key in environment variables",
-            }
-        ]
+        return []  # Return empty list to indicate no real analysis was performed
 
     def _mock_suggestions(self) -> List[Dict[str, Any]]:
         """Return mock suggestions when AI is unavailable."""
-        return [
-            {
-                "type": "info",
-                "priority": "medium",
-                "title": "Configure AI Service",
-                "description": "Set up OpenRouter API key to enable AI-powered code suggestions",
-                "line": 1,
-                "example": "export OPENROUTER_API_KEY=your_api_key_here",
-            }
-        ]
+        return []  # Return empty list to indicate no real suggestions were generated

@@ -178,7 +178,7 @@ class AnalysisSummary(BaseModel):
     low_issues: int = Field(description="Number of low severity issues")
     languages_detected: List[str] = Field(description="Programming languages detected")
     overall_score: Optional[float] = Field(
-        None, description="Overall code quality score (0.0-10.0)", ge=0.0, le=10.0
+        None, description="Overall code quality score (0.0-100.0)", ge=0.0, le=100.0
     )
 
 
