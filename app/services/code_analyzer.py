@@ -16,7 +16,7 @@ from typing import Any, Dict, List
 
 from structlog import get_logger
 
-from app.models import AnalysisStatus, FileAnalysis, Issue
+from app.models import AnalysisStatus, FileAnalysis, Issue, IssueType, IssueSeverity
 from app.services.ai_agent import AIAgent
 
 logger = get_logger(__name__)
@@ -59,10 +59,8 @@ class CodeAnalyzer:
         # Extract file content and metadata
         file_content = file_data.get("patch", "")
         file_path = filename
-        status = file_data.get("status", "modified")
         additions = file_data.get("additions", 0)
         deletions = file_data.get("deletions", 0)
-        changes = file_data.get("changes", 0)
 
         # If we have the full file content, use it; otherwise use patch
         if "content" in file_data:
@@ -98,7 +96,11 @@ class CodeAnalyzer:
                 [
                     issue
                     for issue in analysis_results["issues"]
-                    if issue.get("severity") == "critical"
+                    if issue.get("severity")
+                    in [
+                        "critical",
+                        "high",
+                    ]  # Include both critical and high as critical
                 ]
             ),
             ai_recommendations=analysis_results["suggestions"],
@@ -109,20 +111,54 @@ class CodeAnalyzer:
         # Create Issue models
         file_analysis.issues = []
         for issue_data in analysis_results["issues"]:
+            # Map issue type to our enum
+            issue_type_str = issue_data.get("type", "bug")
+            if issue_type_str in [e.value for e in IssueType]:
+                issue_type = IssueType(issue_type_str)
+            else:
+                # Default mapping for common types
+                type_mapping = {
+                    "unknown": IssueType.BUG,
+                    "error": IssueType.BUG,
+                    "warning": IssueType.BEST_PRACTICE,
+                    "info": IssueType.STYLE,
+                    "quality": IssueType.MAINTAINABILITY,
+                }
+                issue_type = type_mapping.get(issue_type_str, IssueType.BUG)
+
+            # Map severity to our enum
+            severity_str = issue_data.get("severity", "low")
+            if severity_str in [e.value for e in IssueSeverity]:
+                severity = IssueSeverity(severity_str)
+            else:
+                # Default mapping for common severities
+                severity_mapping = {
+                    "error": IssueSeverity.HIGH,
+                    "warning": IssueSeverity.MEDIUM,
+                    "info": IssueSeverity.LOW,
+                }
+                severity = severity_mapping.get(severity_str, IssueSeverity.LOW)
+
             issue = Issue(
-                type=issue_data.get("type", "unknown"),
-                severity=issue_data.get("severity", "low"),
-                message=issue_data.get("message", ""),
+                issue_type=issue_type,
+                severity=severity,
+                title=issue_data.get(
+                    "title", issue_data.get("message", "Unknown issue")
+                ),
+                description=issue_data.get(
+                    "message", issue_data.get("description", "")
+                ),
                 line_number=issue_data.get("line", 0),
                 column_number=issue_data.get("column", 0),
                 rule_id=issue_data.get("rule_id", ""),
-                category=issue_data.get("category", "general"),
                 suggestion=issue_data.get("suggestion", ""),
-                metadata={
-                    "pattern": issue_data.get("pattern"),
-                    "confidence": issue_data.get("confidence", "medium"),
-                    "fix_effort": issue_data.get("fix_effort", "low"),
-                },
+                confidence=(
+                    float(issue_data.get("confidence", 0.5))
+                    if isinstance(issue_data.get("confidence"), (int, float, str))
+                    else 0.5
+                ),
+                tags=issue_data.get("tags", []),
+                references=issue_data.get("references", []),
             )
             file_analysis.issues.append(issue)
 
@@ -235,7 +271,9 @@ class CodeAnalyzer:
         base_score = maintainability_score
 
         # Penalize based on issues
-        critical_issues = len([i for i in issues if i.get("severity") == "critical"])
+        critical_issues = len(
+            [i for i in issues if i.get("severity") in ["critical", "high"]]
+        )
         high_issues = len([i for i in issues if i.get("severity") == "high"])
         medium_issues = len([i for i in issues if i.get("severity") == "medium"])
 
@@ -272,7 +310,7 @@ class CodeAnalyzer:
         score = 100
 
         critical_security = len(
-            [i for i in security_issues if i.get("severity") == "critical"]
+            [i for i in security_issues if i.get("severity") in ["critical", "high"]]
         )
         high_security = len([i for i in security_issues if i.get("severity") == "high"])
         medium_security = len(

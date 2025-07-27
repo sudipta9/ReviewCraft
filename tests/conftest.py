@@ -2,26 +2,31 @@
 Test configuration and fixtures for the autonomous code review system.
 
 This module provides pytest fixtures and test utilities for testing
-all components of the system.
+all components of the system with proper async support.
 """
 
 import asyncio
 import os
-from typing import Any, Dict
-from unittest.mock import AsyncMock, Mock
-
 import pytest
+import pytest_asyncio
+from typing import Dict, Any, AsyncGenerator
+from unittest.mock import Mock, AsyncMock
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.pool import StaticPool
+from app.main import create_app
+from app.database import Base
 
-# Test environment setup
+# Test environment setup - MUST be done before importing app modules
 os.environ.update(
     {
-        "ENVIRONMENT": "testing",
-        "DATABASE_URL": "postgresql://test:test@localhost/test_db",
+        "ENVIRONMENT": "development",  # Use development to enable OpenAPI docs
+        "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
         "REDIS_URL": "redis://localhost:6379/1",
         "OPENROUTER_API_KEY": "test-key-for-testing",
         "GITHUB_TOKEN": "test-token",
         "DEBUG": "true",
+        "LOG_LEVEL": "ERROR",
     }
 )
 
@@ -29,23 +34,84 @@ os.environ.update(
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture
-def app():
-    """Create FastAPI app instance for testing."""
-    from app.main import create_app
+@pytest_asyncio.fixture(scope="session")
+async def test_engine():
+    """Create test database engine."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+        echo=False,
+    )
 
-    return create_app()
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield engine
+
+    # Cleanup
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
+    """Create a test database session."""
+    async_session = async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with async_session() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest_asyncio.fixture
+async def app():
+    """Create FastAPI app instance for testing."""
+    # Import here to avoid circular dependencies
+    from app.database import DatabaseManager, Base
+
+    # Import models to ensure they are registered with SQLAlchemy
+    from app.models import Task, PRAnalysis, FileAnalysis, Issue
+
+    # Create the app
+    app = create_app()
+
+    # Get the database manager and create tables
+    db_manager = DatabaseManager()
+    async with db_manager.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield app
+
+    # Cleanup - drop tables
+    async with db_manager.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture
 def client(app):
     """Create test client."""
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def mock_celery_task():
+    """Mock Celery task for testing."""
+    mock_task = Mock()
+    mock_task.id = "test-celery-task-123"
+    mock_task.state = "PENDING"
+    mock_task.info = None
+    return mock_task
 
 
 @pytest.fixture
@@ -66,6 +132,11 @@ def mock_github_pr_data() -> Dict[str, Any]:
         "additions": 45,
         "deletions": 12,
         "commits": 2,
+        "_metadata": {
+            "owner": "test-owner",
+            "repo": "test-repo",
+            "fetched_at": 1234567890.0,
+        },
     }
 
 
@@ -80,22 +151,6 @@ def mock_github_files_data() -> list:
             "deletions": 5,
             "changes": 30,
             "patch": "@@ -10,7 +10,7 @@ class User:\n-    def validate_token(self, token):\n+    def validate_token(self, token: str) -> bool:\n         return token and len(token) > 10\n\n+    def is_admin(self) -> bool:\n+        return self.role == 'admin'",
-        },
-        {
-            "filename": "auth/views.py",
-            "status": "modified",
-            "additions": 15,
-            "deletions": 3,
-            "changes": 18,
-            "patch": "@@ -5,6 +5,8 @@ from .models import User\n def login_view(request):\n     token = request.headers.get('Authorization')\n     user = User.objects.get(token=token)\n+    if not user.is_admin():\n+        raise PermissionError('Admin required')\n     return JsonResponse({'status': 'success'})",
-        },
-        {
-            "filename": "tests/test_auth.py",
-            "status": "added",
-            "additions": 20,
-            "deletions": 0,
-            "changes": 20,
-            "patch": "@@ -0,0 +1,20 @@\n+import pytest\n+from auth.models import User\n+\n+def test_user_validation():\n+    user = User(token='valid_token_123')\n+    assert user.validate_token('valid_token_123') is True\n+    assert user.validate_token('short') is False\n+\n+def test_admin_check():\n+    admin_user = User(role='admin')\n+    regular_user = User(role='user')\n+    assert admin_user.is_admin() is True\n+    assert regular_user.is_admin() is False",
         },
     ]
 
@@ -112,57 +167,6 @@ def calculate_score(items):
         else:
             total += item.value
     return total
-
-class DataProcessor:
-    def __init__(self, config):
-        self.config = config
-        self.api_key = "sk-1234567890abcdef"  # Hardcoded API key (security issue)
-    
-    def process_data(self, data):
-        # This function is too long and complex
-        results = []
-        for entry in data:
-            if entry is None:
-                continue
-            processed = {}
-            processed["id"] = entry.get("id")
-            processed["name"] = entry.get("name", "").strip()
-            processed["email"] = entry.get("email", "").lower()
-            # More processing logic here...
-            if processed["email"]:
-                results.append(processed)
-        return results
-"""
-
-
-@pytest.fixture
-def sample_javascript_code() -> str:
-    """Sample JavaScript code for testing analysis."""
-    return """
-var userName = "john_doe";  // Should use const/let
-var userEmail = "john@example.com";
-
-function processUser(user) {
-    console.log("Processing user:", user);  // Console.log in production
-    
-    if (user.name == userName) {  // Should use ===
-        document.getElementById("user-info").innerHTML = user.bio;  // XSS vulnerability
-    }
-    
-    return {
-        name: user.name,
-        email: user.email,
-        processed: true
-    };
-}
-
-function calculateTotal(items) {
-    var total = 0;
-    for (var i = 0; i < items.length; i++) {
-        total += items[i].price;
-    }
-    return total;
-}
 """
 
 
@@ -177,55 +181,10 @@ def mock_ai_agent():
             "complexity_score": 7,
             "duplication_score": 0.1,
             "language": "python",
-            "issues": [
-                {
-                    "type": "style",
-                    "severity": "low",
-                    "line": 15,
-                    "message": "Line too long",
-                    "suggestion": "Break line for readability",
-                }
-            ],
+            "issues": [],
             "maintainability_score": 75,
         }
     )
-
-    agent.analyze_security = AsyncMock(
-        return_value=[
-            {
-                "type": "sensitive_data",
-                "severity": "critical",
-                "line": 12,
-                "message": "Hardcoded API key detected",
-                "suggestion": "Use environment variables",
-            }
-        ]
-    )
-
-    agent.generate_suggestions = AsyncMock(
-        return_value=[
-            {
-                "type": "refactoring",
-                "priority": "medium",
-                "message": "Consider breaking down large function",
-                "suggestion": "Extract smaller functions for better maintainability",
-            }
-        ]
-    )
-
-    agent.generate_summary = AsyncMock(
-        return_value={
-            "overall_quality": "good",
-            "overall_score": 78,
-            "total_files_analyzed": 3,
-            "total_issues": 5,
-            "critical_issues": 1,
-            "security_issues": 1,
-            "recommendations": ["Address critical security issues"],
-            "analysis_timestamp": "2024-01-15T12:00:00.000000",
-        }
-    )
-
     return agent
 
 
@@ -243,50 +202,20 @@ def mock_github_client():
 @pytest.fixture
 def mock_settings():
     """Mock settings for testing."""
-    from unittest.mock import Mock
+    mock_settings = Mock()
+    mock_settings.app_name = "Test Code Review Agent"
+    mock_settings.environment = "testing"
+    mock_settings.debug = True
+    mock_settings.is_development = True
 
-    # Create mock settings structure
-    settings = Mock()
-    settings.app_name = "Test Code Review Agent"
-    settings.environment = "testing"
-    settings.debug = True
-    settings.api_host = "127.0.0.1"
-    settings.api_port = 8000
+    # Mock nested configs
+    mock_settings.database = Mock()
+    mock_settings.database.url = "sqlite+aiosqlite:///:memory:"
 
-    # Mock nested settings
-    settings.database = Mock()
-    settings.database.url = "postgresql://test:test@localhost/test_db"
+    mock_settings.ai = Mock()
+    mock_settings.ai.openrouter_api_key = "test-key"
 
-    settings.ai = Mock()
-    settings.ai.openrouter_api_key = "test-key"
-    settings.ai.openrouter_model = "qwen/qwen3-coder:free"
+    mock_settings.github = Mock()
+    mock_settings.github.token = "test-token"
 
-    settings.github = Mock()
-    settings.github.token = "test-token"
-
-    settings.celery = Mock()
-    settings.celery.broker_url = "amqp://test:test@localhost:5672//"
-
-    settings.redis = Mock()
-    settings.redis.url = "redis://localhost:6379/1"
-
-    return settings
-
-
-@pytest.fixture
-async def async_db_session():
-    """Create async database session for testing."""
-    # Note: This would need proper test database setup in real implementation
-    from unittest.mock import AsyncMock
-
-    session = AsyncMock()
-    session.commit = AsyncMock()
-    session.rollback = AsyncMock()
-    session.close = AsyncMock()
-    return session
-
-
-# Test markers
-pytest_mark_unit = pytest.mark.unit
-pytest_mark_integration = pytest.mark.integration
-pytest_mark_slow = pytest.mark.slow
+    return mock_settings

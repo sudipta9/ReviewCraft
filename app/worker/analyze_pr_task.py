@@ -13,7 +13,7 @@ The task orchestrates the entire analysis workflow:
 
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Dict, Optional
 
 from app.models import AnalysisStatus, PRAnalysis, Task, TaskStatus
@@ -194,8 +194,7 @@ async def _analyze_pr_async(
             .where(Task.id == task_id)
             .values(
                 status=TaskStatus.PROCESSING,
-                estimated_completion_time=datetime.now(tz=timezone.utc)
-                + timedelta(minutes=5),
+                started_at=datetime.now(),
             )
         )
 
@@ -203,18 +202,13 @@ async def _analyze_pr_async(
         pr_analysis = PRAnalysis(
             task_id=task_id,
             status=AnalysisStatus.IN_PROGRESS,
-            pr_title=pr_data.get("title", ""),
-            pr_description=pr_data.get("body", ""),
-            pr_author=pr_data.get("user", {}).get("login", ""),
-            base_branch=pr_data.get("base", {}).get("ref", ""),
-            head_branch=pr_data.get("head", {}).get("ref", ""),
-            total_files=len(files_data),
-            files_changed=len(files_data),
-            metadata={
-                "pr_url": pr_data.get("html_url"),
-                "pr_created_at": pr_data.get("created_at"),
-                "pr_updated_at": pr_data.get("updated_at"),
-            },
+            pr_url=pr_data.get("html_url", ""),
+            base_branch=pr_data.get("base", {}).get("ref", "main"),
+            head_branch=pr_data.get("head", {}).get("ref", "feature"),
+            base_sha=pr_data.get("base", {}).get("sha", ""),
+            head_sha=pr_data.get("head", {}).get("sha", ""),
+            analysis_started_at=datetime.now(),
+            total_files_analyzed=len(files_data),
         )
 
         session.add(pr_analysis)
@@ -308,10 +302,11 @@ async def _analyze_pr_async(
             .where(PRAnalysis.id == pr_analysis.id)
             .values(
                 status=AnalysisStatus.COMPLETED,
-                total_issues=total_issues,
+                analysis_completed_at=datetime.now(),
+                total_issues_found=total_issues,
                 critical_issues=critical_issues,
-                summary=summary,
-                overall_score=summary.get("overall_score", 75),
+                summary=str(summary.get("overall_quality", "Analysis completed")),
+                quality_score=float(summary.get("overall_score", 75)),
                 recommendations=summary.get("recommendations", []),
             )
         )
@@ -324,9 +319,7 @@ async def _analyze_pr_async(
         await session.execute(
             update(Task)
             .where(Task.id == task_id)
-            .values(
-                status=TaskStatus.COMPLETED, completed_at=datetime.now(tz=timezone.utc)
-            )
+            .values(status=TaskStatus.COMPLETED, completed_at=datetime.now())
         )
 
         await session.commit()
@@ -365,7 +358,7 @@ async def _update_task_failed(task_id: str, error_message: str) -> None:
             .values(
                 status=TaskStatus.FAILED,
                 error_message=error_message,
-                completed_at=datetime.now(tz=timezone.utc),
+                completed_at=datetime.now(),
             )
         )
         await session.commit()

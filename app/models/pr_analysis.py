@@ -11,15 +11,17 @@ Features:
 - Analysis metrics and metadata
 """
 
-from asyncio import Task
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.task import Task
 
 
 class AnalysisStatus(str, Enum):

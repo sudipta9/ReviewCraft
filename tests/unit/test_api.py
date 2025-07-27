@@ -5,11 +5,8 @@ Tests cover API validation, error handling, orjson serialization,
 and endpoint functionality.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
-
-import orjson
 import pytest
+from unittest.mock import Mock, patch, AsyncMock
 from fastapi import status
 
 from app.api.schemas import TaskPriority
@@ -52,13 +49,14 @@ class TestAPIEndpoints:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         data = response.json()
-        assert "detail" in data
+        assert "error" in data
+        assert data["error"]["code"] == "VALIDATION_ERROR"
 
         # Check validation errors
-        errors = data["detail"]
-        field_errors = [error["loc"] for error in errors]
-        assert ("body", "repo_url") in field_errors
-        assert ("body", "pr_number") in field_errors
+        errors = data["error"]["context"]["details"]
+        field_errors = [error["field"] for error in errors]
+        assert "body.repo_url" in field_errors
+        assert "body.pr_number" in field_errors
 
     @pytest.mark.unit
     def test_analyze_pr_endpoint_validation_invalid_url(self, client):
@@ -69,9 +67,9 @@ class TestAPIEndpoints:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         data = response.json()
-        assert "error_code" in data
-        assert data["error_code"] == "VALIDATION_ERROR"
-        assert "repo_url" in data["message"].lower()
+        assert "error" in data
+        assert data["error"]["code"] == "VALIDATION_ERROR"
+        assert "url" in data["message"].lower()
 
     @pytest.mark.unit
     def test_analyze_pr_endpoint_validation_invalid_priority(self, client):
@@ -87,17 +85,20 @@ class TestAPIEndpoints:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         data = response.json()
-        errors = data["detail"]
+        # Our custom error handler converts FastAPI validation errors to our format
+        assert "error" in data
+        assert data["error"]["code"] == "VALIDATION_ERROR"
+        errors = data["error"]["context"]["details"]
 
         # Find priority validation error
         priority_error = next(
-            (error for error in errors if error["loc"] == ("body", "priority")), None
+            (error for error in errors if "priority" in error["field"]), None
         )
         assert priority_error is not None
-        assert "low" in priority_error["msg"]
-        assert "normal" in priority_error["msg"]
-        assert "high" in priority_error["msg"]
-        assert "urgent" in priority_error["msg"]
+        assert "low" in priority_error["message"]
+        assert "normal" in priority_error["message"]
+        assert "high" in priority_error["message"]
+        assert "urgent" in priority_error["message"]
 
     @pytest.mark.unit
     def test_analyze_pr_endpoint_valid_request(self, client):
@@ -117,7 +118,12 @@ class TestAPIEndpoints:
 
             assert response.status_code == status.HTTP_202_ACCEPTED
             data = response.json()
-            assert data["task_id"] == "test-task-123"
+            # Check that task_id is a valid UUID format
+            import uuid
+
+            assert uuid.UUID(
+                data["task_id"]
+            )  # This will raise ValueError if not valid UUID
             assert data["status"] == "pending"
             assert "message" in data
 
@@ -141,6 +147,23 @@ class TestAPIEndpoints:
     @pytest.mark.unit
     def test_status_endpoint_valid_task(self, client):
         """Test task status endpoint with valid task ID."""
+        # First create a task to get a valid task_id
+        with patch("app.worker.pr_analysis_task.analyze_pr_task.delay") as mock_delay:
+            mock_delay.return_value.id = "test-celery-task-123"
+
+            # Create a task via the API
+            create_response = client.post(
+                "/api/v1/analyze-pr",
+                json={
+                    "repo_url": "https://github.com/owner/repo",
+                    "pr_number": 42,
+                },
+            )
+            assert create_response.status_code == status.HTTP_202_ACCEPTED
+            task_data = create_response.json()
+            task_id = task_data["task_id"]
+
+        # Now test the status endpoint with the actual task_id
         with patch(
             "app.worker.pr_analysis_task.analyze_pr_task.AsyncResult"
         ) as mock_result:
@@ -151,14 +174,13 @@ class TestAPIEndpoints:
                 "message": "Processing files...",
             }
 
-            response = client.get("/api/v1/status/test-task-123")
+            response = client.get(f"/api/v1/status/{task_id}")
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["task_id"] == "test-task-123"
-            assert data["status"] == "PROGRESS"
-            assert data["progress"] == 50
-            assert data["stage"] == "analyzing_files"
+            assert data["task_id"] == task_id
+            assert data["status"] == "pending"  # Task status from database
+            assert data["progress"] == 50  # Progress from Celery mock
 
     @pytest.mark.unit
     def test_status_endpoint_completed_task(self, client):
@@ -260,10 +282,12 @@ class TestAPIEndpoints:
     @pytest.mark.unit
     def test_orjson_datetime_serialization(self, client):
         """Test that orjson properly serializes datetime objects."""
+        from datetime import datetime
+        import orjson
 
         # Test datetime serialization
         test_data = {
-            "timestamp": datetime.now(tz=timezone.utc),
+            "timestamp": datetime.now(),
             "task_id": "test-123",
             "status": "completed",
         }

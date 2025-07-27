@@ -138,7 +138,7 @@ async def analyze_pr(
     # Submit task to Celery
     try:
         celery_task = celery_app.send_task(
-            "app.worker.celery_worker.pr_analysis_task",
+            "analyze_pr_task",
             args=[
                 task.id,
                 request.repo_url,
@@ -282,9 +282,8 @@ async def get_analysis_results(
     result = await db.execute(
         select(Task)
         .options(
-            selectinload(Task.pr_analysis)
-            .selectinload(PRAnalysis.file_analyses)
-            .selectinload(PRAnalysis.file_analyses)
+            selectinload(Task.pr_analysis).selectinload(PRAnalysis.file_analyses),
+            selectinload(Task.pr_analysis).selectinload(PRAnalysis.issues),
         )
         .where(Task.id == task_id)
     )
@@ -296,9 +295,9 @@ async def get_analysis_results(
     # Check if task is completed
     if task.status != TaskStatus.COMPLETED:
         raise ValidationError(
-            f"Task is not completed yet. Current status: {task.status.value}",
+            f"Task is not completed yet. Current status: {task.status}",
             field="task_status",
-            value=task.status.value,
+            value=task.status,
         )
 
     # Get the latest analysis result

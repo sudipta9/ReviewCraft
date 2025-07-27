@@ -13,13 +13,15 @@ Features:
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from sqlalchemy import JSON, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.pr_analysis import PRAnalysis
+
+if TYPE_CHECKING:
+    from app.models.pr_analysis import PRAnalysis
 
 
 class TaskStatus(str, Enum):

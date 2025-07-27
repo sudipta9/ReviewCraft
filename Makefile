@@ -85,7 +85,7 @@ run-prod: ## Run the application in production mode
 	ENVIRONMENT=production uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 
 celery-worker: ## Start Celery worker
-	ENVIRONMENT=development celery -A app.worker.celery_app worker --loglevel=info
+	ENVIRONMENT=development celery -A app.worker.celery_app worker --loglevel=info  -Q test-queue -c 1
 
 # Database Commands (when Alembic is set up)
 db-init: ## Initialize database migrations

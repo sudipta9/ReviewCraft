@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 from sqlalchemy.sql import func
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -123,14 +123,17 @@ class DatabaseManager(LoggerMixin):
         Returns:
             AsyncEngine: Configured database engine
         """
-        # For async engines, we don't need to specify poolclass
-        # SQLAlchemy will choose the appropriate async pool automatically
+        # For async engines, configure poolclass based on database type
         if settings.is_testing:
             # Use NullPool for testing to avoid connection issues
             poolclass = NullPool
             pool_pre_ping = False
+        elif "sqlite" in settings.database.url.lower():
+            # Use StaticPool for SQLite to avoid pool_size/max_overflow issues
+            poolclass = StaticPool
+            pool_pre_ping = False
         else:
-            # Let SQLAlchemy choose the appropriate async pool
+            # Let SQLAlchemy choose the appropriate async pool for PostgreSQL
             poolclass = None
             pool_pre_ping = True
 
@@ -141,10 +144,14 @@ class DatabaseManager(LoggerMixin):
             "pool_recycle": 3600,  # Recycle connections every hour
         }
 
-        # Only add pool configuration if not using NullPool
+        # Only add pool configuration if not using special pools (NullPool or StaticPool)
         if poolclass is not None:
             engine_kwargs["poolclass"] = poolclass
+            # Add SQLite-specific connection args for StaticPool
+            if poolclass == StaticPool:
+                engine_kwargs["connect_args"] = {"check_same_thread": False}
         else:
+            # Only add pool_size and max_overflow for PostgreSQL
             engine_kwargs.update(
                 {
                     "pool_size": settings.database.pool_size,

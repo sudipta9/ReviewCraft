@@ -15,7 +15,7 @@ Features:
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-
+from whats_that_code.election import guess_language_all_methods
 from structlog import get_logger
 
 from app.config import get_settings
@@ -304,24 +304,13 @@ class AIAgent:
 
     def _detect_language(self, file_path: str) -> str:
         """Detect programming language from file extension."""
-        extension = file_path.split(".")[-1].lower() if "." in file_path else ""
-
-        language_map = {
-            "py": "python",
-            "js": "javascript",
-            "ts": "typescript",
-            "jsx": "javascript",
-            "tsx": "typescript",
-            "java": "java",
-            "go": "go",
-            "rs": "rust",
-            "cpp": "cpp",
-            "c": "c",
-            "h": "c",
-            "hpp": "cpp",
-        }
-
-        return language_map.get(extension, "unknown")
+        language = "unknown"
+        try:
+            result = guess_language_all_methods(file_name=file_path, code="")
+            language = result if result else "unknown"
+        except Exception as e:
+            logger.error(f"Error detecting language for {file_path}: {e}")
+        return language
 
     async def _calculate_complexity(self, content: str, file_path: str) -> int:
         """Calculate cyclomatic complexity (simplified)."""
