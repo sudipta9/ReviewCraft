@@ -12,17 +12,17 @@ Features:
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from app.models import (
-    TaskStatus,
-    TaskPriority,
     AnalysisStatus,
-    IssueType,
     IssueSeverity,
+    IssueType,
+    TaskPriority,
+    TaskStatus,
 )
 
 

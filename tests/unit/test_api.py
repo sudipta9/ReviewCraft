@@ -5,8 +5,11 @@ Tests cover API validation, error handling, orjson serialization,
 and endpoint functionality.
 """
 
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock, patch
+
+import orjson
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from fastapi import status
 
 from app.api.schemas import TaskPriority
@@ -257,12 +260,10 @@ class TestAPIEndpoints:
     @pytest.mark.unit
     def test_orjson_datetime_serialization(self, client):
         """Test that orjson properly serializes datetime objects."""
-        from datetime import datetime
-        import orjson
 
         # Test datetime serialization
         test_data = {
-            "timestamp": datetime.now(),
+            "timestamp": datetime.now(tz=timezone.utc),
             "task_id": "test-123",
             "status": "completed",
         }

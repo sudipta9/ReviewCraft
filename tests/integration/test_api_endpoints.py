@@ -5,8 +5,9 @@ Tests cover the full API functionality including request validation,
 error handling, and response formatting.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app

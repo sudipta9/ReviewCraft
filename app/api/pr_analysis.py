@@ -10,7 +10,7 @@ Endpoints:
 - GET /results/{task_id}: Get analysis results
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, status
@@ -25,7 +25,7 @@ from app.api.schemas import (
     TaskStatusResponse,
 )
 from app.database import get_db_session
-from app.models import PRAnalysis, Task, TaskStatus, AnalysisStatus
+from app.models import AnalysisStatus, PRAnalysis, Task, TaskStatus
 from app.utils import (
     NotFoundError,
     TaskNotFoundError,
@@ -47,10 +47,10 @@ router = APIRouter()
     summary="Submit PR for Analysis",
     description="""
     Submit a GitHub pull request for autonomous code review analysis.
-    
+
     The analysis will be performed asynchronously using Celery workers.
     Use the returned task_id to check the status and retrieve results.
-    
+
     **Requirements:**
     - Valid GitHub repository URL
     - Valid pull request number
@@ -114,7 +114,7 @@ async def analyze_pr(
         config={
             "repo_url": request.repo_url,
             "github_token": request.github_token,
-            "requested_at": datetime.utcnow().isoformat(),
+            "requested_at": datetime.now(tz=timezone.utc).isoformat(),
             "client_info": {
                 "user_agent": getattr(request, "user_agent", None),
                 "ip_address": getattr(request, "client_ip", None),
@@ -138,7 +138,7 @@ async def analyze_pr(
     # Submit task to Celery
     try:
         celery_task = celery_app.send_task(
-            "analyze_pr_task",
+            "app.worker.celery_worker.pr_analysis_task",
             args=[
                 task.id,
                 request.repo_url,
@@ -181,7 +181,7 @@ async def analyze_pr(
     summary="Check Task Status",
     description="""
     Check the current status of a PR analysis task.
-    
+
     **Possible statuses:**
     - `pending`: Task created but not yet started
     - `queued`: Task queued for processing
@@ -236,7 +236,7 @@ async def get_task_status(
 
     return TaskStatusResponse(
         success=True,
-        message=f"Task status: {task.status.value}",
+        message=f"Task status: {task.status}",
         task_id=task.id,
         status=task.status,
         progress=celery_progress,
@@ -253,7 +253,7 @@ async def get_task_status(
     summary="Get Analysis Results",
     description="""
     Retrieve the complete analysis results for a completed task.
-    
+
     **Note:** This endpoint only returns data for completed tasks.
     Use the status endpoint to check if analysis is complete.
     """,

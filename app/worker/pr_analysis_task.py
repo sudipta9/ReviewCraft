@@ -13,10 +13,10 @@ The task orchestrates the entire analysis workflow:
 
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-from app.models import PRAnalysis, Task, TaskStatus, AnalysisStatus
+from app.models import AnalysisStatus, PRAnalysis, Task, TaskStatus
 from app.utils import (
     GitHubAPIError,
     TaskFailedError,
@@ -147,9 +147,9 @@ async def _analyze_pr_async(
         Dict: Analysis results
     """
     from app.database import db_manager
-    from app.services.github_client import GitHubClient
     from app.services.ai_agent import AIAgent
     from app.services.code_analyzer import CodeAnalyzer
+    from app.services.github_client import GitHubClient
 
     # Update progress: Fetching PR data
     celery_task.update_state(
@@ -194,7 +194,8 @@ async def _analyze_pr_async(
             .where(Task.id == task_id)
             .values(
                 status=TaskStatus.PROCESSING,
-                estimated_completion_time=datetime.utcnow() + timedelta(minutes=5),
+                estimated_completion_time=datetime.now(tz=timezone.utc)
+                + timedelta(minutes=5),
             )
         )
 
@@ -323,7 +324,9 @@ async def _analyze_pr_async(
         await session.execute(
             update(Task)
             .where(Task.id == task_id)
-            .values(status=TaskStatus.COMPLETED, completed_at=datetime.utcnow())
+            .values(
+                status=TaskStatus.COMPLETED, completed_at=datetime.now(tz=timezone.utc)
+            )
         )
 
         await session.commit()
@@ -351,8 +354,9 @@ async def _analyze_pr_async(
 
 async def _update_task_failed(task_id: str, error_message: str) -> None:
     """Update task status to failed in database."""
-    from app.database import db_manager
     from sqlalchemy import update
+
+    from app.database import db_manager
 
     async with db_manager.get_session() as session:
         await session.execute(
@@ -361,7 +365,7 @@ async def _update_task_failed(task_id: str, error_message: str) -> None:
             .values(
                 status=TaskStatus.FAILED,
                 error_message=error_message,
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(tz=timezone.utc),
             )
         )
         await session.commit()

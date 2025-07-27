@@ -5,9 +5,10 @@ Tests cover GitHub API integration, repository analysis,
 PR fetching, and error handling functionality.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
 import httpx
+import pytest
 
 from app.services.github_client import GitHubClient
 from app.utils import GitHubAPIError

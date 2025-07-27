@@ -8,13 +8,12 @@ security vulnerability detection, and improvement suggestions.
 
 import json
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 from structlog import get_logger
 
 from ..config import get_settings
-
 
 logger = get_logger()
 

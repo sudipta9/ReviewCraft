@@ -5,11 +5,12 @@ Tests cover file analysis orchestration, quality score calculation,
 and integration with AI agent functionality.
 """
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
+from app.models import AnalysisStatus, FileAnalysis
 from app.services.code_analyzer import CodeAnalyzer
-from app.models import FileAnalysis, AnalysisStatus
 
 
 class TestCodeAnalyzer:

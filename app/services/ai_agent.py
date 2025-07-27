@@ -13,14 +13,14 @@ Features:
 - Structured feedback generation
 """
 
-from typing import Dict, List, Any
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any, Dict, List
 
 from structlog import get_logger
 
 from app.config import get_settings
-from app.services.llm_client import LLMClient
 from app.services.code_embeddings import CodeEmbeddingsService
+from app.services.llm_client import LLMClient
 
 logger = get_logger(__name__)
 
@@ -283,7 +283,7 @@ class AIAgent:
             "critical_issues": critical_issues_count,
             "security_issues": security_issues_count,
             "recommendations": recommendations,
-            "analysis_timestamp": datetime.utcnow().isoformat(),
+            "analysis_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "pr_metadata": {
                 "title": pr_data.get("title", ""),
                 "author": pr_data.get("user", {}).get("login", ""),

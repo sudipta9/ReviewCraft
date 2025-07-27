@@ -5,8 +5,9 @@ Tests cover end-to-end workflows, service integration,
 and real API functionality.
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
 
 
 class TestServiceIntegration:
@@ -94,8 +95,8 @@ class TestServiceIntegration:
     @pytest.mark.integration
     def test_configuration_integration(self, mock_settings):
         """Test configuration integration across services."""
-        from app.services.github_client import GitHubClient
         from app.services.ai_agent import AIAgent
+        from app.services.github_client import GitHubClient
 
         with patch(
             "app.services.github_client.get_settings", return_value=mock_settings
@@ -223,7 +224,7 @@ class TestDatabaseIntegration:
     @pytest.mark.asyncio
     async def test_task_model_operations(self, async_db_session):
         """Test Task model database operations."""
-        from app.models import Task, TaskStatus, TaskPriority
+        from app.models import Task, TaskPriority, TaskStatus
 
         # Create a test task
         task = Task(

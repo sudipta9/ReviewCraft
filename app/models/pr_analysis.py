@@ -14,9 +14,9 @@ Features:
 from asyncio import Task
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import String, Text, Integer, Float, JSON, ForeignKey
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base

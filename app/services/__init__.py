@@ -11,11 +11,11 @@ Services:
 - CodeEmbeddingsService: Semantic code analysis using embeddings
 """
 
-from .github_client import GitHubClient
 from .ai_agent import AIAgent
 from .code_analyzer import CodeAnalyzer
-from .llm_client import LLMClient
 from .code_embeddings import CodeEmbeddingsService
+from .github_client import GitHubClient
+from .llm_client import LLMClient
 
 __all__ = [
     "GitHubClient",

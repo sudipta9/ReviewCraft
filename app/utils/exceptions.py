@@ -11,8 +11,8 @@ Features:
 - Structured error responses
 """
 
-from typing import Any, Dict, Optional
 from enum import Enum
+from typing import Any, Dict, Optional
 
 
 class ErrorCode(str, Enum):

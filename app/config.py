@@ -14,10 +14,10 @@ Features:
 import os
 from enum import Enum
 from functools import lru_cache
-from typing import Optional, List
+from typing import List, Optional
 
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 # Load environment variables from .env file
 load_dotenv()

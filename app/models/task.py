@@ -13,9 +13,9 @@ Features:
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from sqlalchemy import String, Text, Integer, Boolean, JSON
+from sqlalchemy import JSON, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base

@@ -87,9 +87,6 @@ run-prod: ## Run the application in production mode
 celery-worker: ## Start Celery worker
 	ENVIRONMENT=development celery -A app.worker.celery_app worker --loglevel=info
 
-celery-flower: ## Start Celery Flower monitoring
-	ENVIRONMENT=development celery -A app.worker.celery_app flower
-
 # Database Commands (when Alembic is set up)
 db-init: ## Initialize database migrations
 	alembic init alembic

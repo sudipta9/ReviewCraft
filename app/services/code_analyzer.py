@@ -12,11 +12,11 @@ Features:
 """
 
 import asyncio
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from structlog import get_logger
 
-from app.models import FileAnalysis, Issue, AnalysisStatus
+from app.models import AnalysisStatus, FileAnalysis, Issue
 from app.services.ai_agent import AIAgent
 
 logger = get_logger(__name__)

@@ -11,8 +11,9 @@ Features:
 - Fast local inference without external API calls
 """
 
+from typing import Any, Dict, List, Tuple
+
 import numpy as np
-from typing import List, Dict, Any, Tuple
 from sentence_transformers import SentenceTransformer
 from structlog import get_logger
 
