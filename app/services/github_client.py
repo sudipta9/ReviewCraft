@@ -11,8 +11,8 @@ Features:
 - Structured data parsing and validation
 """
 
-import asyncio
 import base64
+import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -184,7 +184,7 @@ class GitHubClient:
         pr_data["_metadata"] = {
             "owner": owner,
             "repo": repo,
-            "fetched_at": asyncio.get_event_loop().time(),
+            "fetched_at": time.time(),  # Use time.time() instead of event loop time
         }
 
         logger.info(
