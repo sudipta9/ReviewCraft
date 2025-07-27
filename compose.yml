@@ -1,4 +1,39 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: "bitnami/postgresql:latest"
+    environment:
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_PASSWORD=guestPass123
+      - POSTGRESQL_DATABASE=code_review_db
+      - POSTGRESQL_POSTGRES_PASSWORD=guestPass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Celery Backend
+  redis:
+    image: "bitnami/redis:latest"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_DATABASE=0
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/bitnami/redis/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ Message Broker
   rabbitmq:
     image: "bitnami/rabbitmq:latest"
     ports:
@@ -11,14 +46,15 @@ services:
       - RABBITMQ_PASSWORD=guest
       - RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS=true
       - RABBITMQ_NODE_NAME=rabbit@rabbitmq
+    volumes:
+      - rabbitmq_data:/bitnami/rabbitmq/mnesia
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  redis:
-    image: "bitnami/redis:latest"
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - REDIS_DATABASE=0
-    ports:
-      - "6379:6379"
+  # Celery Flower (Monitoring)
   celery-flower:
     image: gregsi/latest-celery-flower-docker:latest
     environment:
@@ -34,10 +70,14 @@ services:
     ports:
       - "5555:5555"
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
+  postgres_data:
+    driver: local
   rabbitmq_data:
     driver: local
   redis_data:

@@ -1,0 +1,68 @@
+"""Utils package initialization."""
+
+from .exceptions import (
+    BaseApplicationError,
+    ValidationError,
+    NotFoundError,
+    UnauthorizedError,
+    ForbiddenError,
+    RateLimitError,
+    GitHubAPIError,
+    GitHubPRNotFoundError,
+    AIServiceError,
+    AIRateLimitError,
+    TaskNotFoundError,
+    TaskFailedError,
+    DatabaseError,
+    CodeAnalysisError,
+    UnsupportedFileTypeError,
+    ErrorCode,
+    handle_exception,
+)
+
+from .logger import (
+    configure_logging,
+    get_logger,
+    log_performance,
+    log_api_request,
+    log_api_response,
+    log_task_start,
+    log_task_success,
+    log_task_failure,
+    log_github_api_call,
+    log_ai_request,
+    LoggerMixin,
+)
+
+__all__ = [
+    # Exceptions
+    "BaseApplicationError",
+    "ValidationError",
+    "NotFoundError",
+    "UnauthorizedError",
+    "ForbiddenError",
+    "RateLimitError",
+    "GitHubAPIError",
+    "GitHubPRNotFoundError",
+    "AIServiceError",
+    "AIRateLimitError",
+    "TaskNotFoundError",
+    "TaskFailedError",
+    "DatabaseError",
+    "CodeAnalysisError",
+    "UnsupportedFileTypeError",
+    "ErrorCode",
+    "handle_exception",
+    # Logging
+    "configure_logging",
+    "get_logger",
+    "log_performance",
+    "log_api_request",
+    "log_api_response",
+    "log_task_start",
+    "log_task_success",
+    "log_task_failure",
+    "log_github_api_call",
+    "log_ai_request",
+    "LoggerMixin",
+]
